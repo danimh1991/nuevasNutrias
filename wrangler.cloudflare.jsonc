@@ -1,0 +1,22 @@
+{
+  "$schema": "./node_modules/wrangler/config-schema.json",
+  "name": "nuevas-nutrias",
+  "main": "dist/server/index.js",
+  "compatibility_date": "2026-05-15",
+  "compatibility_flags": ["nodejs_compat"],
+  "no_bundle": true,
+  "rules": [{ "type": "ESModule", "globs": ["**/*.js", "**/*.mjs"] }],
+  "assets": { "directory": "dist/client" },
+  "d1_databases": [
+    {
+      "binding": "DB",
+      "database_name": "nuevas-nutrias-db",
+      "database_id": "a21c2a37-fceb-4d77-95f5-40e02910f084",
+      "migrations_dir": "drizzle"
+    }
+  ],
+  "routes": [
+    { "pattern": "danieta.com/nuevasnutrias*", "zone_name": "danieta.com" }
+  ],
+  "observability": { "enabled": true }
+}

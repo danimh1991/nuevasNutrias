@@ -6,7 +6,7 @@ Aplicación privada para registrar el crecimiento infantil: peso, estatura y per
 
 - Local: raíz `/`, D1 local de Wrangler y acceso directo de desarrollo.
 - OpenAI Sites: raíz `/`, D1 administrada por Sites y acceso privado de Sites.
-- Cloudflare Workers: `/nuevasnutrias`, D1 `nuevas-nutrias-db` y código de acceso guardado como secretos del Worker.
+- Cloudflare Workers: `/nuevasnutrias`, con D1 `nuevas-nutrias-db` y acceso abierto por ahora.
 
 ## Desarrollo local
 
@@ -27,14 +27,7 @@ La configuración está en `wrangler.cloudflare.jsonc`. El despliegue genera una
 npm run deploy:cloudflare
 ```
 
-Los secretos necesarios se configuran una vez por cuenta y nunca se guardan en Git:
-
-```bash
-npx wrangler secret put APP_ACCESS_CODE --config wrangler.cloudflare.jsonc
-npx wrangler secret put APP_SESSION_TOKEN --config wrangler.cloudflare.jsonc
-```
-
-`APP_ACCESS_CODE` es el código que introduce la familia. `APP_SESSION_TOKEN` debe ser una cadena aleatoria larga.
+La ruta no solicita código de acceso. Si más adelante se publica o comparte fuera del entorno familiar, conviene añadir autenticación antes de introducir datos sensibles.
 
 ## OpenAI Sites
 

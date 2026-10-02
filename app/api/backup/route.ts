@@ -2,6 +2,7 @@ import { eq } from "drizzle-orm";
 import { getDb } from "../../../db";
 import { children, measurements } from "../../../db/schema";
 import { errorResponse, ownerId, validDate } from "../helpers";
+import { pinGuard } from "../../pin-auth";
 
 type ImportedMeasurement={measuredAt:string;weightKg:number|null;heightCm:number|null;headCm:number|null;notes:string};
 type ImportedChild={name:string;birthDate:string;sex:"male"|"female";measurements:ImportedMeasurement[]};
@@ -39,6 +40,7 @@ function parseBackup(value:unknown):ImportedChild[]|null{
 }
 
 export async function POST(request:Request){
+  const denied=await pinGuard(request);if(denied)return denied;
   try{
     const imported=parseBackup(await request.json());
     if(!imported)return Response.json({error:"El archivo no es una copia válida de Nuevas nutrias."},{status:400});

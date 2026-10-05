@@ -130,10 +130,167 @@
   }
 }
 
+html {
+  min-width: 0;
+  background: var(--background);
+}
+
 body {
+  min-width: 0;
+  min-height: 100vh;
+  min-height: 100dvh;
+  overflow-x: hidden;
   background: var(--background);
   color: var(--foreground);
   font-family: "Trebuchet MS", Arial, sans-serif;
 }
 
 .font-display { font-family: Georgia, "Times New Roman", serif; }
+
+.app-viewport-height {
+  min-height: 100vh;
+  min-height: 100dvh;
+}
+
+.app-header {
+  min-height: calc(64px + env(safe-area-inset-top, 0px));
+  padding-block-start: calc(0.75rem + env(safe-area-inset-top, 0px));
+  padding-block-end: 0.75rem;
+  padding-inline-start: max(1rem, env(safe-area-inset-left, 0px));
+  padding-inline-end: max(1rem, env(safe-area-inset-right, 0px));
+}
+
+.app-content {
+  padding-inline-start: max(1rem, env(safe-area-inset-left, 0px));
+  padding-inline-end: max(1rem, env(safe-area-inset-right, 0px));
+  padding-block-end: calc(1.5rem + env(safe-area-inset-bottom, 0px));
+}
+
+.pin-screen {
+  padding-block-start: calc(2.5rem + env(safe-area-inset-top, 0px));
+  padding-block-end: calc(2.5rem + env(safe-area-inset-bottom, 0px));
+  padding-inline-start: max(1.25rem, env(safe-area-inset-left, 0px));
+  padding-inline-end: max(1.25rem, env(safe-area-inset-right, 0px));
+}
+
+[data-slot="dialog-content"],
+[data-slot="alert-dialog-content"] {
+  max-height: calc(
+    100vh - env(safe-area-inset-top, 0px) -
+      env(safe-area-inset-bottom, 0px) - 2rem
+  );
+  max-height: calc(
+    100dvh - env(safe-area-inset-top, 0px) -
+      env(safe-area-inset-bottom, 0px) - 2rem
+  );
+  overflow-y: auto;
+}
+
+[data-slot="dialog-close"],
+[data-slot="sheet-close"] {
+  min-width: 44px;
+  min-height: 44px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+
+[data-slot="sheet-content"][data-side="right"],
+[data-slot="sheet-content"][data-side="left"] {
+  height: 100vh;
+  height: 100dvh;
+  padding-block-start: env(safe-area-inset-top, 0px);
+  padding-block-end: env(safe-area-inset-bottom, 0px);
+}
+
+[data-slot="sheet-content"][data-side="right"] {
+  padding-inline-end: env(safe-area-inset-right, 0px);
+}
+
+[data-slot="sheet-content"][data-side="left"] {
+  padding-inline-start: env(safe-area-inset-left, 0px);
+}
+
+[data-slot="sheet-content"][data-side="top"] {
+  max-height: 100vh;
+  max-height: 100dvh;
+  padding-block-start: env(safe-area-inset-top, 0px);
+  padding-inline: max(0px, env(safe-area-inset-left, 0px))
+    max(0px, env(safe-area-inset-right, 0px));
+}
+
+[data-slot="sheet-content"][data-side="bottom"] {
+  max-height: 100vh;
+  max-height: 100dvh;
+  padding-block-end: env(safe-area-inset-bottom, 0px);
+  padding-inline: max(0px, env(safe-area-inset-left, 0px))
+    max(0px, env(safe-area-inset-right, 0px));
+}
+
+[data-slot="drawer-content"] {
+  max-height: 100vh;
+  max-height: 100dvh;
+}
+
+[data-slot="drawer-content"][data-vaul-drawer-direction="top"],
+[data-slot="drawer-content"][data-vaul-drawer-direction="bottom"] {
+  max-height: 80vh;
+  max-height: 80dvh;
+}
+
+[data-slot="drawer-content"][data-vaul-drawer-direction="top"] {
+  padding-block-start: env(safe-area-inset-top, 0px);
+  padding-inline: env(safe-area-inset-left, 0px)
+    env(safe-area-inset-right, 0px);
+}
+
+[data-slot="drawer-content"][data-vaul-drawer-direction="bottom"] {
+  padding-block-end: env(safe-area-inset-bottom, 0px);
+  padding-inline: env(safe-area-inset-left, 0px)
+    env(safe-area-inset-right, 0px);
+}
+
+[data-slot="drawer-content"][data-vaul-drawer-direction="right"],
+[data-slot="drawer-content"][data-vaul-drawer-direction="left"] {
+  height: 100vh;
+  height: 100dvh;
+  padding-block: env(safe-area-inset-top, 0px)
+    env(safe-area-inset-bottom, 0px);
+}
+
+[data-slot="drawer-content"][data-vaul-drawer-direction="right"] {
+  padding-inline-end: env(safe-area-inset-right, 0px);
+}
+
+[data-slot="drawer-content"][data-vaul-drawer-direction="left"] {
+  padding-inline-start: env(safe-area-inset-left, 0px);
+}
+
+[data-sonner-toaster][data-y-position="top"] {
+  --offset-top: calc(1rem + env(safe-area-inset-top, 0px));
+  --mobile-offset-top: calc(1rem + env(safe-area-inset-top, 0px));
+  --mobile-offset-left: max(1rem, env(safe-area-inset-left, 0px));
+  --mobile-offset-right: max(1rem, env(safe-area-inset-right, 0px));
+}
+
+@media (min-width: 48rem) {
+  .app-header,
+  .app-content {
+    padding-inline-start: max(2rem, env(safe-area-inset-left, 0px));
+    padding-inline-end: max(2rem, env(safe-area-inset-right, 0px));
+  }
+}
+
+@media (max-width: 39.999rem) {
+  [data-slot="dialog-content"],
+  [data-slot="alert-dialog-content"] {
+    max-width: calc(
+      100% - max(1rem, env(safe-area-inset-left, 0px)) -
+        max(1rem, env(safe-area-inset-right, 0px))
+    );
+  }
+
+  [data-slot="dialog-content"] {
+    padding-inline-end: 4rem;
+  }
+}

@@ -64,7 +64,7 @@ export default function PinGate() {
   if (status === "unlocked") return <GrowthApp onLock={lock} />;
 
   return (
-    <main className="relative grid min-h-screen place-items-center overflow-hidden bg-[#f6f8fb] px-5 py-10 text-[#17324d]">
+    <main className="pin-screen app-viewport-height relative grid place-items-center overflow-hidden bg-[#f6f8fb] text-[#17324d]">
       <div className="absolute -left-24 -top-20 size-72 rounded-full bg-[#dff3f1]" />
       <div className="absolute -bottom-28 -right-20 size-80 rounded-full bg-[#fff0d3]" />
       <section className="relative w-full max-w-sm rounded-[2rem] border border-[#dfe8ef] bg-white p-7 text-center shadow-2xl shadow-[#103f5c]/10 sm:p-9">
@@ -106,7 +106,7 @@ export default function PinGate() {
                   <InputOTPSlot
                     key={index}
                     index={index}
-                    className="size-13 rounded-xl border bg-[#f8fafb] text-xl font-bold first:rounded-xl first:border last:rounded-xl"
+                    className="size-12 rounded-xl border bg-[#f8fafb] text-xl font-bold first:rounded-xl first:border last:rounded-xl sm:size-13"
                   />
                 ))}
               </InputOTPGroup>

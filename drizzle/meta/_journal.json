@@ -8,6 +8,13 @@
       "when": 1790882907832,
       "tag": "0000_mature_rhino",
       "breakpoints": true
+    },
+    {
+      "idx": 1,
+      "version": "6",
+      "when": 1791295643670,
+      "tag": "0001_special_tiger_shark",
+      "breakpoints": true
     }
   ]
 }

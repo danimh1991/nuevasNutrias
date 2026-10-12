@@ -23,3 +23,9 @@ export const foodExposures = sqliteTable("food_exposures", {
   ownerId: text("owner_id").notNull(), allergenId: text("allergen_id").notNull(), dayIndex: integer("day_index").notNull(),
   exposedAt: text("exposed_at").notNull(), createdAt: text("created_at").notNull().default(sql`CURRENT_TIMESTAMP`),
 }, table => ({ childAllergenDay: uniqueIndex("food_exposures_child_allergen_day").on(table.childId, table.allergenId, table.dayIndex) }));
+export const customRecipes = sqliteTable("custom_recipes", {
+  id: text("id").primaryKey(), ownerId: text("owner_id").notNull(), title: text("title").notNull(),
+  minAgeMonths: integer("min_age_months").notNull(), timeMinutes: integer("time_minutes").notNull(),
+  ingredientsJson: text("ingredients_json").notNull(), preparation: text("preparation").notNull(), allergensJson: text("allergens_json").notNull(),
+  createdAt: text("created_at").notNull().default(sql`CURRENT_TIMESTAMP`), updatedAt: text("updated_at").notNull().default(sql`CURRENT_TIMESTAMP`),
+});

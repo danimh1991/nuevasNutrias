@@ -1,12 +1,14 @@
 import { eq } from "drizzle-orm";
 import { getDb } from "../../../db";
-import { children, leavePlans, measurements } from "../../../db/schema";
+import { children, foodExposures, leavePlans, measurements } from "../../../db/schema";
 import { errorResponse, ownerId, validDate } from "../helpers";
 import { pinGuard } from "../../pin-auth";
 
 type ImportedMeasurement={measuredAt:string;weightKg:number|null;heightCm:number|null;headCm:number|null;notes:string};
+type ImportedFoodExposure={allergenId:string;dayIndex:number;exposedAt:string};
 type ImportedPlan={periods:{id:string;label:string;person:string;days:number;counting:"calendar"|"workdays"}[];holidays:{date:string;label:string}[]};
-type ImportedChild={name:string;birthDate:string;lastPeriodDate:string|null;expectedBirthDate:string|null;actualBirthDate:string|null;sex:"male"|"female";leavePlan:ImportedPlan|null;measurements:ImportedMeasurement[]};
+type ImportedChild={name:string;birthDate:string;lastPeriodDate:string|null;expectedBirthDate:string|null;actualBirthDate:string|null;sex:"male"|"female";leavePlan:ImportedPlan|null;foodExposures:ImportedFoodExposure[];measurements:ImportedMeasurement[]};
+const allergenIds=new Set(["milk","egg","peanut","tree-nuts","fish","shellfish","wheat","soy","sesame","molluscs","celery","mustard","lupin","sulphites"]);
 
 function numberOrNull(value:unknown,min:number,max:number){
   if(value==null)return null;
@@ -16,12 +18,12 @@ function numberOrNull(value:unknown,min:number,max:number){
 function parseBackup(value:unknown):ImportedChild[]|null{
   if(!value||typeof value!=="object")return null;
   const backup=value as {app?:unknown;version?:unknown;children?:unknown};
-  if(backup.app!=="Nuevas nutrias"||![1,2].includes(Number(backup.version))||!Array.isArray(backup.children)||backup.children.length>100)return null;
+  if(backup.app!=="Nuevas nutrias"||![1,2,3].includes(Number(backup.version))||!Array.isArray(backup.children)||backup.children.length>100)return null;
   let totalMeasurements=0;
   const parsed:ImportedChild[]=[];
   for(const item of backup.children){
     if(!item||typeof item!=="object")return null;
-    const child=item as {name?:unknown;birthDate?:unknown;lastPeriodDate?:unknown;expectedBirthDate?:unknown;actualBirthDate?:unknown;sex?:unknown;leavePlan?:unknown;measurements?:unknown};
+    const child=item as {name?:unknown;birthDate?:unknown;lastPeriodDate?:unknown;expectedBirthDate?:unknown;actualBirthDate?:unknown;sex?:unknown;leavePlan?:unknown;foodExposures?:unknown;measurements?:unknown};
     const name=typeof child.name==="string"?child.name.trim():"";
     if(!name||name.length>80||!validDate(child.birthDate)||!(["male","female"] as unknown[]).includes(child.sex)||!Array.isArray(child.measurements))return null;
     const optionalDate=(value:unknown)=>value==null||value===""?null:validDate(value)?value:null;
@@ -49,7 +51,9 @@ function parseBackup(value:unknown):ImportedChild[]|null{
       if(!validDate(measure.measuredAt)||measure.measuredAt<child.birthDate||weightKg===undefined||heightCm===undefined||headCm===undefined||(!weightKg&&!heightCm&&!headCm)||notes==null||notes.length>300)return null;
       importedMeasurements.push({measuredAt:measure.measuredAt,weightKg,heightCm,headCm,notes});
     }
-    parsed.push({name,birthDate:child.birthDate,lastPeriodDate,expectedBirthDate,actualBirthDate:actualBirthDate??(Number(backup.version)===1?child.birthDate:null),sex:child.sex as "male"|"female",leavePlan,measurements:importedMeasurements});
+    const importedFoodExposures:ImportedFoodExposure[]=[];
+    if(child.foodExposures!=null){if(!Array.isArray(child.foodExposures)||child.foodExposures.length>42)return null;for(const raw of child.foodExposures){if(!raw||typeof raw!=="object")return null;const exposure=raw as {allergenId?:unknown;dayIndex?:unknown;exposedAt?:unknown};if(typeof exposure.allergenId!=="string"||!allergenIds.has(exposure.allergenId)||![1,2,3].includes(Number(exposure.dayIndex))||!validDate(exposure.exposedAt))return null;importedFoodExposures.push({allergenId:exposure.allergenId,dayIndex:Number(exposure.dayIndex),exposedAt:exposure.exposedAt})}}
+    parsed.push({name,birthDate:child.birthDate,lastPeriodDate,expectedBirthDate,actualBirthDate:actualBirthDate??(Number(backup.version)===1?child.birthDate:null),sex:child.sex as "male"|"female",leavePlan,foodExposures:importedFoodExposures,measurements:importedMeasurements});
   }
   return parsed;
 }
@@ -75,6 +79,7 @@ export async function POST(request:Request){
         childrenAdded++;
       }
       if(child.leavePlan){const periodsJson=JSON.stringify(child.leavePlan.periods),holidaysJson=JSON.stringify(child.leavePlan.holidays),updatedAt=new Date().toISOString();await db.insert(leavePlans).values({childId,ownerId:owner,periodsJson,holidaysJson,updatedAt}).onConflictDoUpdate({target:leavePlans.childId,set:{periodsJson,holidaysJson,updatedAt}})}
+      for(const exposure of child.foodExposures)await db.insert(foodExposures).values({id:crypto.randomUUID(),childId,ownerId:owner,...exposure}).onConflictDoNothing();
       for(const measure of child.measurements){
         const weightGrams=measure.weightKg==null?null:Math.round(measure.weightKg*1000),heightMm=measure.heightCm==null?null:Math.round(measure.heightCm*10),headMm=measure.headCm==null?null:Math.round(measure.headCm*10);
         const measureKey=`${childId}|${measure.measuredAt}|${weightGrams??""}|${heightMm??""}|${headMm??""}|${measure.notes}`;

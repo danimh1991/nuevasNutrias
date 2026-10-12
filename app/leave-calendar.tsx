@@ -1,9 +1,10 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
-import { ArrowDown, ArrowUp, ChevronDown, CircleHelp, Plus, Save, Trash2, X } from "lucide-react";
+import { useEffect, useMemo, useRef, useState } from "react";
+import { ArrowDown, ArrowUp, ChevronDown, CircleHelp, Plus, Save, Trash2 } from "lucide-react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
+import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
@@ -12,6 +13,7 @@ import { addDays, calculateLeaveSchedule, defaultLeavePeriods, madridHolidays, p
 type CalendarChild = { id: string; name: string; birthDate: string; lastPeriodDate?: string | null; expectedBirthDate?: string | null; actualBirthDate?: string | null };
 const palette = ["#f3ad9f", "#8fd0c9", "#f7cf76", "#bca7df", "#9fc2df", "#efb4cb", "#b5d59d", "#f2b982"];
 const API_BASE = process.env.NEXT_PUBLIC_BASE_PATH ?? "";
+const PRENATAL_DAY_PARAM = "dia-embarazo";
 const api = (path: string) => `${API_BASE}${path}`;
 const dateText = (date: string) => new Intl.DateTimeFormat("es-ES", { day: "numeric", month: "short", year: "numeric" }).format(parseIsoDate(date));
 
@@ -36,7 +38,8 @@ export default function LeaveCalendar({ child, plan, onSaved }: { child: Calenda
   const [holidayDate, setHolidayDate] = useState(""), [holidayLabel, setHolidayLabel] = useState("");
   const [periodsOpen, setPeriodsOpen] = useState(false), [holidaysOpen, setHolidaysOpen] = useState(false);
   const [selectedPrenatalDate, setSelectedPrenatalDate] = useState<string | null>(null);
-  useEffect(() => { setPeriods(plan?.periods?.length ? plan.periods : defaultLeavePeriods()); setHolidays(plan?.holidays ?? madridHolidays); setSelectedPrenatalDate(null); }, [child.id, plan]);
+  const dialogHistoryEntry = useRef(false);
+  useEffect(() => { setPeriods(plan?.periods?.length ? plan.periods : defaultLeavePeriods()); setHolidays(plan?.holidays ?? madridHolidays); }, [child.id, plan]);
   const anchor = child.actualBirthDate || child.expectedBirthDate || child.birthDate;
   const pregnancyStart = child.lastPeriodDate || addDays(child.expectedBirthDate || child.birthDate, -280);
   const schedule = useMemo(() => calculateLeaveSchedule(anchor, periods, holidays), [anchor, periods, holidays]);
@@ -45,6 +48,38 @@ export default function LeaveCalendar({ child, plan, onSaved }: { child: Calenda
   const colorById = useMemo(() => new Map(periods.map((period, index) => [period.id, palette[index % palette.length]])), [periods]);
   const holidayMap = useMemo(() => new Map(holidays.map(holiday => [holiday.date, holiday.label])), [holidays]);
   const selectedGestation = selectedPrenatalDate ? gestationDetails(pregnancyStart, selectedPrenatalDate) : null;
+
+  useEffect(() => {
+    function syncPrenatalDayFromUrl() {
+      const date = new URL(window.location.href).searchParams.get(PRENATAL_DAY_PARAM);
+      const validDate = date && /^\d{4}-\d{2}-\d{2}$/.test(date) && date >= pregnancyStart && date < anchor ? date : null;
+      dialogHistoryEntry.current = Boolean(validDate && window.history.state?.prenatalDayDialog);
+      setSelectedPrenatalDate(validDate);
+    }
+    syncPrenatalDayFromUrl();
+    window.addEventListener("popstate", syncPrenatalDayFromUrl);
+    return () => window.removeEventListener("popstate", syncPrenatalDayFromUrl);
+  }, [child.id, pregnancyStart, anchor]);
+
+  function openPrenatalDay(date: string) {
+    const url = new URL(window.location.href);
+    url.searchParams.set(PRENATAL_DAY_PARAM, date);
+    window.history.pushState({ ...window.history.state, prenatalDayDialog: true }, "", url);
+    dialogHistoryEntry.current = true;
+    setSelectedPrenatalDate(date);
+  }
+
+  function closePrenatalDay() {
+    const url = new URL(window.location.href);
+    if (dialogHistoryEntry.current && window.history.state?.prenatalDayDialog && url.searchParams.has(PRENATAL_DAY_PARAM)) {
+      window.history.back();
+      return;
+    }
+    url.searchParams.delete(PRENATAL_DAY_PARAM);
+    window.history.replaceState(window.history.state, "", url);
+    dialogHistoryEntry.current = false;
+    setSelectedPrenatalDate(null);
+  }
 
   function updatePeriod(id: string, patch: Partial<LeavePeriod>) { setPeriods(current => current.map(period => period.id === id ? { ...period, ...patch } : period)); }
   function movePeriod(index: number, direction: -1 | 1) { setPeriods(current => { const next = [...current], target = index + direction; if (target < 0 || target >= next.length) return current; [next[index], next[target]] = [next[target], next[index]]; return next; }); }
@@ -98,9 +133,24 @@ export default function LeaveCalendar({ child, plan, onSaved }: { child: Calenda
     <section>
       <div className="mb-3"><h2 className="font-display text-xl font-bold">Vista de calendario</h2><p className="mt-1 text-sm text-[#708496]">Abre un mes y selecciona cualquier día anterior al nacimiento para consultar la edad gestacional. Desde el nacimiento se muestran los colores de cada permiso.</p></div>
       <div className="mb-4 flex flex-wrap gap-2"><span className="inline-flex items-center gap-2 rounded-full bg-white px-3 py-1 text-xs shadow-sm"><i className="size-2.5 rounded-full bg-[#e8f5f3] ring-1 ring-[#8fd0c9]"/>Embarazo</span>{periods.map((period, index) => <span key={period.id} className="inline-flex items-center gap-2 rounded-full bg-white px-3 py-1 text-xs shadow-sm"><i className="size-2.5 rounded-full" style={{ background: palette[index % palette.length] }}/>{period.label} · {period.person}</span>)}</div>
-      {selectedPrenatalDate && selectedGestation && <article className="mb-4 rounded-3xl border border-[#b9dfda] bg-[#eef8f7] p-5 shadow-sm"><div className="flex items-start justify-between gap-3"><div><p className="text-xs font-bold tracking-wider text-[#527a78]">INFORMACIÓN DEL EMBARAZO</p><strong className="font-display mt-1 block text-xl">{dateText(selectedPrenatalDate)}</strong></div><Button variant="ghost" size="icon" aria-label="Cerrar información del día" onClick={() => setSelectedPrenatalDate(null)}><X/></Button></div><div className="mt-4 grid gap-3 sm:grid-cols-3"><div className="rounded-2xl bg-white/80 p-3"><span className="block text-xs text-[#708496]">Edad gestacional</span><strong className="mt-1 block text-lg">Semana {selectedGestation.week} + {selectedGestation.day}</strong></div><div className="rounded-2xl bg-white/80 p-3"><span className="block text-xs text-[#708496]">Mes de embarazo</span><strong className="mt-1 block text-lg">Mes {selectedGestation.pregnancyMonth}</strong><span className="text-xs text-[#708496]">{selectedGestation.completedMonths} meses completos desde la FUR</span></div><div className="rounded-2xl bg-white/80 p-3"><span className="block text-xs text-[#708496]">Trimestre</span><strong className="mt-1 block text-lg">{selectedGestation.trimester}.º trimestre</strong></div></div></article>}
-      <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-3">{months.map(month => <MonthCard key={month.toISOString()} month={month} rangeStart={pregnancyStart} rangeEnd={finalDate} anchor={anchor} schedule={schedule} holidayMap={holidayMap} colorById={colorById} selectedPrenatalDate={selectedPrenatalDate} onSelectPrenatal={setSelectedPrenatalDate}/>)}</div>
+      <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-3">{months.map(month => <MonthCard key={month.toISOString()} month={month} rangeStart={pregnancyStart} rangeEnd={finalDate} anchor={anchor} schedule={schedule} holidayMap={holidayMap} colorById={colorById} selectedPrenatalDate={selectedPrenatalDate} onSelectPrenatal={openPrenatalDay}/>)}</div>
     </section>
+    <Dialog open={Boolean(selectedPrenatalDate && selectedGestation)} onOpenChange={open => { if (!open) closePrenatalDay(); }}>
+      <DialogContent className="rounded-3xl border-[#b9dfda] bg-[#eef8f7] sm:max-w-xl">
+        {selectedPrenatalDate && selectedGestation && <>
+          <DialogHeader>
+            <p className="text-xs font-bold tracking-wider text-[#527a78]">INFORMACIÓN DEL EMBARAZO</p>
+            <DialogTitle className="font-display text-2xl text-[#17324d]">{dateText(selectedPrenatalDate)}</DialogTitle>
+            <DialogDescription>Edad gestacional calculada desde la fecha de última regla.</DialogDescription>
+          </DialogHeader>
+          <div className="grid gap-3 sm:grid-cols-3">
+            <div className="rounded-2xl bg-white/85 p-4"><span className="block text-xs text-[#708496]">Edad gestacional</span><strong className="mt-1 block text-lg text-[#17324d]">Semana {selectedGestation.week} + {selectedGestation.day}</strong></div>
+            <div className="rounded-2xl bg-white/85 p-4"><span className="block text-xs text-[#708496]">Mes de embarazo</span><strong className="mt-1 block text-lg text-[#17324d]">Mes {selectedGestation.pregnancyMonth}</strong><span className="text-xs text-[#708496]">{selectedGestation.completedMonths} meses completos desde la FUR</span></div>
+            <div className="rounded-2xl bg-white/85 p-4"><span className="block text-xs text-[#708496]">Trimestre</span><strong className="mt-1 block text-lg text-[#17324d]">{selectedGestation.trimester}.º trimestre</strong></div>
+          </div>
+        </>}
+      </DialogContent>
+    </Dialog>
     <footer className="pb-3 text-xs leading-relaxed text-[#718596]">Plan orientativo y editable. Comprueba con la empresa, el convenio y la Seguridad Social qué periodos corresponden y cómo pueden disfrutarse.</footer>
   </div>;
 }

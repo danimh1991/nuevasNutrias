@@ -1,13 +1,13 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
-import { ArrowDown, ArrowUp, ChevronDown, CircleHelp, Plus, Save, Trash2 } from "lucide-react";
+import { ArrowDown, ArrowUp, ChevronDown, CircleHelp, Plus, Save, Trash2, X } from "lucide-react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { calculateLeaveSchedule, defaultLeavePeriods, madridHolidays, parseIsoDate, toIsoDate, type LeaveHoliday, type LeavePeriod, type LeavePlan } from "@/lib/leave-calendar";
+import { addDays, calculateLeaveSchedule, defaultLeavePeriods, madridHolidays, parseIsoDate, toIsoDate, type LeaveHoliday, type LeavePeriod, type LeavePlan } from "@/lib/leave-calendar";
 
 type CalendarChild = { id: string; name: string; birthDate: string; lastPeriodDate?: string | null; expectedBirthDate?: string | null; actualBirthDate?: string | null };
 const palette = ["#f3ad9f", "#8fd0c9", "#f7cf76", "#bca7df", "#9fc2df", "#efb4cb", "#b5d59d", "#f2b982"];
@@ -18,21 +18,33 @@ const dateText = (date: string) => new Intl.DateTimeFormat("es-ES", { day: "nume
 function monthRange(from: string, to: string) {
   const start = parseIsoDate(from), end = parseIsoDate(to), months: Date[] = [];
   start.setUTCDate(1); end.setUTCDate(1);
-  while (start <= end && months.length < 18) { months.push(new Date(start)); start.setUTCMonth(start.getUTCMonth() + 1); }
+  while (start <= end && months.length < 48) { months.push(new Date(start)); start.setUTCMonth(start.getUTCMonth() + 1); }
   return months;
+}
+
+function gestationDetails(fur: string, date: string) {
+  const start = parseIsoDate(fur), selected = parseIsoDate(date), elapsedDays = Math.max(0, Math.round((selected.getTime() - start.getTime()) / 86_400_000));
+  let completedMonths = (selected.getUTCFullYear() - start.getUTCFullYear()) * 12 + selected.getUTCMonth() - start.getUTCMonth();
+  if (selected.getUTCDate() < start.getUTCDate()) completedMonths--;
+  completedMonths = Math.max(0, completedMonths);
+  const week = Math.floor(elapsedDays / 7), day = elapsedDays % 7;
+  return { completedMonths, pregnancyMonth: completedMonths + 1, week, day, trimester: week < 14 ? 1 : week < 28 ? 2 : 3 };
 }
 
 export default function LeaveCalendar({ child, plan, onSaved }: { child: CalendarChild; plan: LeavePlan | null; onSaved: (plan: LeavePlan) => void }) {
   const [periods, setPeriods] = useState<LeavePeriod[]>([]), [holidays, setHolidays] = useState<LeaveHoliday[]>([]), [saving, setSaving] = useState(false);
   const [holidayDate, setHolidayDate] = useState(""), [holidayLabel, setHolidayLabel] = useState("");
   const [periodsOpen, setPeriodsOpen] = useState(false), [holidaysOpen, setHolidaysOpen] = useState(false);
-  useEffect(() => { setPeriods(plan?.periods?.length ? plan.periods : defaultLeavePeriods()); setHolidays(plan?.holidays ?? madridHolidays); }, [child.id, plan]);
+  const [selectedPrenatalDate, setSelectedPrenatalDate] = useState<string | null>(null);
+  useEffect(() => { setPeriods(plan?.periods?.length ? plan.periods : defaultLeavePeriods()); setHolidays(plan?.holidays ?? madridHolidays); setSelectedPrenatalDate(null); }, [child.id, plan]);
   const anchor = child.actualBirthDate || child.expectedBirthDate || child.birthDate;
+  const pregnancyStart = child.lastPeriodDate || addDays(child.expectedBirthDate || child.birthDate, -280);
   const schedule = useMemo(() => calculateLeaveSchedule(anchor, periods, holidays), [anchor, periods, holidays]);
   const finalDate = schedule.at(-1)?.endDate ?? anchor;
-  const months = useMemo(() => monthRange(anchor, finalDate), [anchor, finalDate]);
+  const months = useMemo(() => monthRange(pregnancyStart, finalDate), [pregnancyStart, finalDate]);
   const colorById = useMemo(() => new Map(periods.map((period, index) => [period.id, palette[index % palette.length]])), [periods]);
   const holidayMap = useMemo(() => new Map(holidays.map(holiday => [holiday.date, holiday.label])), [holidays]);
+  const selectedGestation = selectedPrenatalDate ? gestationDetails(pregnancyStart, selectedPrenatalDate) : null;
 
   function updatePeriod(id: string, patch: Partial<LeavePeriod>) { setPeriods(current => current.map(period => period.id === id ? { ...period, ...patch } : period)); }
   function movePeriod(index: number, direction: -1 | 1) { setPeriods(current => { const next = [...current], target = index + direction; if (target < 0 || target >= next.length) return current; [next[index], next[target]] = [next[target], next[index]]; return next; }); }
@@ -54,8 +66,9 @@ export default function LeaveCalendar({ child, plan, onSaved }: { child: Calenda
   }
 
   return <div className="mt-6 space-y-6">
-    <section className="grid gap-4 sm:grid-cols-3">
-      <article className="rounded-3xl border border-[#dfe8ef] bg-white p-5 shadow-sm"><p className="text-xs font-bold tracking-wider text-[#708496]">FECHA DE REFERENCIA</p><strong className="font-display mt-2 block text-2xl">{dateText(anchor)}</strong><p className="mt-1 text-sm text-[#708496]">{child.actualBirthDate ? "Nacimiento real" : "FEP provisional"}</p></article>
+    <section className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
+      <article className="rounded-3xl border border-[#dfe8ef] bg-white p-5 shadow-sm"><p className="text-xs font-bold tracking-wider text-[#708496]">FUR</p><strong className="font-display mt-2 block text-2xl">{dateText(pregnancyStart)}</strong><p className="mt-1 text-sm text-[#708496]">{child.lastPeriodDate ? "Fecha indicada en el perfil" : "Estimación de 40 semanas"}</p></article>
+      <article className="rounded-3xl border border-[#dfe8ef] bg-white p-5 shadow-sm"><p className="text-xs font-bold tracking-wider text-[#708496]">{child.actualBirthDate ? "NACIMIENTO" : "FEP"}</p><strong className="font-display mt-2 block text-2xl">{dateText(anchor)}</strong><p className="mt-1 text-sm text-[#708496]">{child.actualBirthDate ? "Fecha real" : "Fecha provisional"}</p></article>
       <article className="rounded-3xl border border-[#dfe8ef] bg-white p-5 shadow-sm"><p className="text-xs font-bold tracking-wider text-[#708496]">FIN DEL PLAN</p><strong className="font-display mt-2 block text-2xl">{dateText(finalDate)}</strong><p className="mt-1 text-sm text-[#708496]">Se recalcula al cambiar el nacimiento</p></article>
       <article className="rounded-3xl border border-[#dfe8ef] bg-white p-5 shadow-sm"><p className="text-xs font-bold tracking-wider text-[#708496]">CÓMPUTO LABORAL</p><strong className="font-display mt-2 block text-2xl">Lunes a viernes</strong><p className="mt-1 text-sm text-[#708496]">También excluye los festivos de la lista</p></article>
     </section>
@@ -83,21 +96,28 @@ export default function LeaveCalendar({ child, plan, onSaved }: { child: Calenda
     </section>
 
     <section>
-      <div className="mb-3"><h2 className="font-display text-xl font-bold">Vista de calendario</h2><p className="mt-1 text-sm text-[#708496]">Los colores corresponden a cada concepto. La fecha marcada con un anillo es la FEP o el nacimiento real.</p></div>
-      <div className="mb-4 flex flex-wrap gap-2">{periods.map((period, index) => <span key={period.id} className="inline-flex items-center gap-2 rounded-full bg-white px-3 py-1 text-xs shadow-sm"><i className="size-2.5 rounded-full" style={{ background: palette[index % palette.length] }}/>{period.label} · {period.person}</span>)}</div>
-      <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">{months.map(month => <MonthCard key={month.toISOString()} month={month} anchor={anchor} schedule={schedule} holidayMap={holidayMap} colorById={colorById}/>)}</div>
-      {months.length === 18 && parseIsoDate(finalDate) > months.at(-1)! && <p className="mt-3 text-sm text-[#708496]">La vista muestra los primeros 18 meses; la tabla conserva el plan completo hasta {dateText(finalDate)}.</p>}
+      <div className="mb-3"><h2 className="font-display text-xl font-bold">Vista de calendario</h2><p className="mt-1 text-sm text-[#708496]">Abre un mes y selecciona cualquier día anterior al nacimiento para consultar la edad gestacional. Desde el nacimiento se muestran los colores de cada permiso.</p></div>
+      <div className="mb-4 flex flex-wrap gap-2"><span className="inline-flex items-center gap-2 rounded-full bg-white px-3 py-1 text-xs shadow-sm"><i className="size-2.5 rounded-full bg-[#e8f5f3] ring-1 ring-[#8fd0c9]"/>Embarazo</span>{periods.map((period, index) => <span key={period.id} className="inline-flex items-center gap-2 rounded-full bg-white px-3 py-1 text-xs shadow-sm"><i className="size-2.5 rounded-full" style={{ background: palette[index % palette.length] }}/>{period.label} · {period.person}</span>)}</div>
+      {selectedPrenatalDate && selectedGestation && <article className="mb-4 rounded-3xl border border-[#b9dfda] bg-[#eef8f7] p-5 shadow-sm"><div className="flex items-start justify-between gap-3"><div><p className="text-xs font-bold tracking-wider text-[#527a78]">INFORMACIÓN DEL EMBARAZO</p><strong className="font-display mt-1 block text-xl">{dateText(selectedPrenatalDate)}</strong></div><Button variant="ghost" size="icon" aria-label="Cerrar información del día" onClick={() => setSelectedPrenatalDate(null)}><X/></Button></div><div className="mt-4 grid gap-3 sm:grid-cols-3"><div className="rounded-2xl bg-white/80 p-3"><span className="block text-xs text-[#708496]">Edad gestacional</span><strong className="mt-1 block text-lg">Semana {selectedGestation.week} + {selectedGestation.day}</strong></div><div className="rounded-2xl bg-white/80 p-3"><span className="block text-xs text-[#708496]">Mes de embarazo</span><strong className="mt-1 block text-lg">Mes {selectedGestation.pregnancyMonth}</strong><span className="text-xs text-[#708496]">{selectedGestation.completedMonths} meses completos desde la FUR</span></div><div className="rounded-2xl bg-white/80 p-3"><span className="block text-xs text-[#708496]">Trimestre</span><strong className="mt-1 block text-lg">{selectedGestation.trimester}.º trimestre</strong></div></div></article>}
+      <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-3">{months.map(month => <MonthCard key={month.toISOString()} month={month} rangeStart={pregnancyStart} rangeEnd={finalDate} anchor={anchor} schedule={schedule} holidayMap={holidayMap} colorById={colorById} selectedPrenatalDate={selectedPrenatalDate} onSelectPrenatal={setSelectedPrenatalDate}/>)}</div>
     </section>
     <footer className="pb-3 text-xs leading-relaxed text-[#718596]">Plan orientativo y editable. Comprueba con la empresa, el convenio y la Seguridad Social qué periodos corresponden y cómo pueden disfrutarse.</footer>
   </div>;
 }
 
-function MonthCard({ month, anchor, schedule, holidayMap, colorById }: { month: Date; anchor: string; schedule: ReturnType<typeof calculateLeaveSchedule>; holidayMap: Map<string, string>; colorById: Map<string, string> }) {
+function MonthCard({ month, rangeStart, rangeEnd, anchor, schedule, holidayMap, colorById, selectedPrenatalDate, onSelectPrenatal }: { month: Date; rangeStart: string; rangeEnd: string; anchor: string; schedule: ReturnType<typeof calculateLeaveSchedule>; holidayMap: Map<string, string>; colorById: Map<string, string>; selectedPrenatalDate: string | null; onSelectPrenatal: (date: string) => void }) {
   const year = month.getUTCFullYear(), monthIndex = month.getUTCMonth(), count = new Date(Date.UTC(year, monthIndex + 1, 0, 12)).getUTCDate();
   const leading = (new Date(Date.UTC(year, monthIndex, 1, 12)).getUTCDay() + 6) % 7;
   const rawTitle = new Intl.DateTimeFormat("es-ES", { month: "long", year: "numeric", timeZone: "UTC" }).format(month), title = rawTitle[0].toUpperCase() + rawTitle.slice(1);
-  return <article className="rounded-3xl border border-[#dfe8ef] bg-white p-4 shadow-sm"><h3 className="font-display mb-3 text-center text-lg font-bold">{title}</h3><div className="grid grid-cols-7 gap-1 text-center text-[11px] font-bold text-[#8193a1]">{["L", "M", "X", "J", "V", "S", "D"].map(day => <span key={day}>{day}</span>)}</div><div className="mt-1 grid grid-cols-7 gap-1">{Array.from({ length: leading }).map((_, index) => <span key={`blank-${index}`}/>)}{Array.from({ length: count }, (_, index) => {
-    const date = toIsoDate(new Date(Date.UTC(year, monthIndex, index + 1, 12))), period = schedule.find(item => date >= item.startDate && date <= item.endDate), holiday = holidayMap.get(date), weekend = [0, 6].includes(parseIsoDate(date).getUTCDay());
-    return <span key={date} title={[period && `${period.label} · ${period.person}`, holiday].filter(Boolean).join(" · ")} className={`relative grid aspect-square place-items-center rounded-lg text-xs ${weekend && !period ? "text-[#a1adb7]" : "text-[#25445c]"} ${date === anchor ? "ring-2 ring-[#17324d] ring-offset-1" : ""}`} style={{ background: period ? colorById.get(period.id) : weekend ? "#f4f6f8" : "transparent" }}>{index + 1}{holiday && <i className="absolute bottom-1 size-1.5 rounded-full bg-[#d14d3f]"/>}</span>;
-  })}</div></article>;
+  const firstDate = toIsoDate(new Date(Date.UTC(year, monthIndex, 1, 12))), lastDate = toIsoDate(new Date(Date.UTC(year, monthIndex, count, 12)));
+  const today = toIsoDate(new Date()), containsToday = today >= firstDate && today <= lastDate && today >= rangeStart && today <= rangeEnd;
+  const [open, setOpen] = useState(containsToday);
+  const overlapping = schedule.filter(period => period.startDate <= lastDate && period.endDate >= firstDate);
+  const summary = lastDate < anchor ? "Embarazo" : firstDate <= anchor && anchor <= lastDate ? `${childDateLabel(anchor)} · comienza la baja` : overlapping.length ? [...new Set(overlapping.map(period => period.label))].join(" · ") : "Plan de baja";
+  return <article className="overflow-hidden rounded-3xl border border-[#dfe8ef] bg-white shadow-sm"><button type="button" aria-expanded={open} className="flex w-full items-center gap-3 p-4 text-left focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-[#17324d]" onClick={() => setOpen(value => !value)}><span className="min-w-0 flex-1"><span className="font-display block text-lg font-bold">{title}</span><span className="mt-0.5 block truncate text-xs text-[#708496]">{summary}</span></span><ChevronDown className={`shrink-0 text-[#708496] transition-transform ${open ? "rotate-180" : ""}`} aria-hidden="true"/></button>{open && <div className="border-t border-[#edf1f4] p-4"><div className="grid grid-cols-7 gap-1 text-center text-[11px] font-bold text-[#8193a1]">{["L", "M", "X", "J", "V", "S", "D"].map(day => <span key={day}>{day}</span>)}</div><div className="mt-1 grid grid-cols-7 gap-1">{Array.from({ length: leading }).map((_, index) => <span key={`blank-${index}`}/>)}{Array.from({ length: count }, (_, index) => {
+    const date = toIsoDate(new Date(Date.UTC(year, monthIndex, index + 1, 12))), inRange = date >= rangeStart && date <= rangeEnd, prenatal = inRange && date < anchor, period = date >= anchor ? schedule.find(item => date >= item.startDate && date <= item.endDate) : undefined, holiday = holidayMap.get(date), weekend = [0, 6].includes(parseIsoDate(date).getUTCDay()), selected = date === selectedPrenatalDate;
+    return <button type="button" key={date} disabled={!prenatal} aria-label={prenatal ? `${dateText(date)}. Consultar embarazo` : dateText(date)} title={[prenatal && `Embarazo · semana ${gestationDetails(rangeStart, date).week} + ${gestationDetails(rangeStart, date).day}`, period && `${period.label} · ${period.person}`, holiday].filter(Boolean).join(" · ")} onClick={() => prenatal && onSelectPrenatal(date)} className={`relative grid aspect-square place-items-center rounded-lg text-xs transition ${!inRange ? "opacity-25" : weekend && !period && !prenatal ? "text-[#a1adb7]" : "text-[#25445c]"} ${prenatal ? "cursor-pointer bg-[#eef8f7] hover:bg-[#dcefeb]" : "cursor-default"} ${selected ? "ring-2 ring-[#087f8c] ring-offset-1" : ""} ${date === anchor ? "ring-2 ring-[#17324d] ring-offset-1" : ""}`} style={{ background: period ? colorById.get(period.id) : undefined }}>{index + 1}{holiday && inRange && <i className="absolute bottom-1 size-1.5 rounded-full bg-[#d14d3f]"/>}</button>;
+  })}</div></div>}</article>;
 }
+
+function childDateLabel(anchor: string) { return `Nacimiento ${dateText(anchor)}`; }

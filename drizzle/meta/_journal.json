@@ -50,6 +50,13 @@
       "when": 1791810000000,
       "tag": "0006_add_gonzalo_pregnancy_dates",
       "breakpoints": true
+    },
+    {
+      "idx": 7,
+      "version": "6",
+      "when": 1791874615879,
+      "tag": "0007_tan_malice",
+      "breakpoints": true
     }
   ]
 }

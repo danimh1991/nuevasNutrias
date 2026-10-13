@@ -29,3 +29,11 @@ export const customRecipes = sqliteTable("custom_recipes", {
   ingredientsJson: text("ingredients_json").notNull(), preparation: text("preparation").notNull(), allergensJson: text("allergens_json").notNull(),
   createdAt: text("created_at").notNull().default(sql`CURRENT_TIMESTAMP`), updatedAt: text("updated_at").notNull().default(sql`CURRENT_TIMESTAMP`),
 });
+export const customAllergens = sqliteTable("custom_allergens", {
+  id: text("id").primaryKey(), ownerId: text("owner_id").notNull(), name: text("name").notNull(),
+  hint: text("hint").notNull(), emoji: text("emoji").notNull(), createdAt: text("created_at").notNull().default(sql`CURRENT_TIMESTAMP`),
+});
+export const hiddenAllergens = sqliteTable("hidden_allergens", {
+  id: text("id").primaryKey(), ownerId: text("owner_id").notNull(), allergenId: text("allergen_id").notNull(),
+  createdAt: text("created_at").notNull().default(sql`CURRENT_TIMESTAMP`),
+}, table => ({ ownerAllergen: uniqueIndex("hidden_allergens_owner_allergen").on(table.ownerId, table.allergenId) }));

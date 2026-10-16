@@ -1,5 +1,5 @@
 import { sql } from "drizzle-orm";
-import { integer, sqliteTable, text, uniqueIndex } from "drizzle-orm/sqlite-core";
+import { integer, real, sqliteTable, text, uniqueIndex } from "drizzle-orm/sqlite-core";
 
 export const children = sqliteTable("children", {
   id: text("id").primaryKey(), ownerId: text("owner_id").notNull(), name: text("name").notNull(),
@@ -37,3 +37,8 @@ export const hiddenAllergens = sqliteTable("hidden_allergens", {
   id: text("id").primaryKey(), ownerId: text("owner_id").notNull(), allergenId: text("allergen_id").notNull(),
   createdAt: text("created_at").notNull().default(sql`CURRENT_TIMESTAMP`),
 }, table => ({ ownerAllergen: uniqueIndex("hidden_allergens_owner_allergen").on(table.ownerId, table.allergenId) }));
+export const feedingEquivalences = sqliteTable("feeding_equivalences", {
+  id: text("id").primaryKey(), ownerId: text("owner_id").notNull(), title: text("title").notNull(),
+  milkMl: real("milk_ml").notNull(), productAmount: real("product_amount").notNull(), productUnit: text("product_unit").notNull(),
+  createdAt: text("created_at").notNull().default(sql`CURRENT_TIMESTAMP`),
+});

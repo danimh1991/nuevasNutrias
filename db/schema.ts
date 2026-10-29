@@ -40,5 +40,6 @@ export const hiddenAllergens = sqliteTable("hidden_allergens", {
 export const feedingEquivalences = sqliteTable("feeding_equivalences", {
   id: text("id").primaryKey(), ownerId: text("owner_id").notNull(), title: text("title").notNull(),
   milkMl: real("milk_ml").notNull(), productAmount: real("product_amount").notNull(), productUnit: text("product_unit").notNull(),
+  additionalColumnsJson: text("additional_columns_json").notNull().default("[]"),
   createdAt: text("created_at").notNull().default(sql`CURRENT_TIMESTAMP`),
 });

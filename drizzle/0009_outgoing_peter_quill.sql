@@ -1,0 +1,1 @@
+ALTER TABLE `feeding_equivalences` ADD `additional_columns_json` text DEFAULT '[]' NOT NULL;
